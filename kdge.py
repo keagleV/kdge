@@ -9,6 +9,10 @@ from random import shuffle
 from operator import sub
 
 
+from pickle import dump
+
+from os import makedirs
+
 class Kdge:
 
 	'''
@@ -31,8 +35,8 @@ class Kdge:
 		# File containing the key
 		self.keyFile = None
 
-		# Ouput file of the action
-		self.outputFile=None
+		# Ouput directory of the action
+		self.outputDir=None
 
 		# Length of the key, default key size is 128
 		self.keyLen = 128
@@ -83,7 +87,7 @@ class Kdge:
 		parser.add_argument('-l','--keylen',  type=str, nargs=1,help='Specify key Length')
 		parser.add_argument('-a','--action',  type=str, nargs=1,help='Specify Action')
 		parser.add_argument('-e','--ea',  type=str, nargs=1,help='Specify EA Parameters File')
-		parser.add_argument('-o','--out',  type=str, nargs=1,help='Specify Output File')
+		parser.add_argument('-o','--out',  type=str, nargs=1,help='Specify Output Directory')
 
 
 		args = parser.parse_args()
@@ -91,9 +95,9 @@ class Kdge:
 
 		if args.action:
 
-			# Checking for the output file
+			# Checking for the output directory
 			if args.out:
-				self.outputFile = args.out[0]
+				self.outputDir = args.out[0]
 
 			# Checking for the keyfile since it is independent of the action
 			if args.kfile:
@@ -265,35 +269,35 @@ class Kdge:
 
 
 
-		'''
-			Next, we have to create the transcript T which is mRNA
+		# '''
+		# 	Next, we have to create the transcript T which is mRNA
 			
-			mRNA is bit complement of the DNA which here is the plaintext
-		'''
-		mRNA = list()
-		for bit in plaintextFileCharEncoding:
-			if bit == '0':
-				mRNA.append('1')
-			else:
-				mRNA.append('0')
+		# 	mRNA is bit complement of the DNA which here is the plaintext
+		# '''
+		# mRNA = list()
+		# for bit in plaintextFileCharEncoding:
+		# 	if bit == '0':
+		# 		mRNA.append('1')
+		# 	else:
+		# 		mRNA.append('0')
 
 
 		'''
 			Next, we have to create tRNA
 			
 		'''
-		tRNA=plaintextFileCharEncoding
+		# tRNA=plaintextFileCharEncoding
 
 
-		mRNADecimalVals = list()
-		tRNADecimalVals = list()
+		# mRNADecimalVals = list()
+		# tRNADecimalVals = list()
 
-		# Next we convert 8by8 bits to decimal values for mRNA and tRNA
-		for idx in range(0,len(mRNA),8):
-			mRNADecimalVals.append(int("".join(mRNA[idx:idx+8]),2))
+		# # Next we convert 8by8 bits to decimal values for mRNA and tRNA
+		# for idx in range(0,len(mRNA),8):
+		# 	mRNADecimalVals.append(int("".join(mRNA[idx:idx+8]),2))
 
-		for idx in range(0,len(tRNA),8):
-			tRNADecimalVals.append(int("".join(tRNA[idx:idx+8]),2))
+		# for idx in range(0,len(tRNA),8):
+		# 	tRNADecimalVals.append(int("".join(tRNA[idx:idx+8]),2))
 
 
 	
@@ -301,55 +305,66 @@ class Kdge:
 		'''
 			Next, we calculate the subtractive matrix
 		'''
-		subtractiveMatrix = [ abs(diff) for diff in list(map(sub,mRNADecimalVals,tRNADecimalVals))]
+		# subtractiveMatrix = [ abs(diff) for diff in list(map(sub,mRNADecimalVals,tRNADecimalVals))]
 
-		# Shuffling the matrix
-		shuffle(subtractiveMatrix)
+		# # Shuffling the matrix
+		# shuffle(subtractiveMatrix)
 
 	
 
 
 
 		# Achieving the tRNA again by converting the subtractive matrix back to binary form
-		tRNA = list()
-		for num in subtractiveMatrix:
-			tRNA += list(bin(num)[2:].zfill(8))
+		# tRNA = list()
+		# for num in subtractiveMatrix:
+		# 	tRNA += list(bin(num)[2:].zfill(8))
 
 
 
-		# XORing tRNA with the key
+		# XORing plaintext with the key
 
-		# First, make key and the plaintext equal
-		difference = len(tRNA) % len(keyFileBitsList)
+		# First, make key and the plaintext equal length
+		difference = len(plaintextFileCharEncoding) % len(keyFileBitsList)
 		newKey = keyFileBitsList+ keyFileBitsList[:difference]
 
 
-		print(tRNA)
+		print(plaintextFileCharEncoding)
 		print(newKey)
 		
 		ciphertext = []
 
-		for i in range(len(tRNA)):
-			if ( tRNA[i]=='1' and newKey[i]=='1') or (tRNA[i]=='0' and newKey[i]=='0'):
+		for i in range(len(plaintextFileCharEncoding)):
+			
+			if ( plaintextFileCharEncoding[i]=='1' and newKey[i]=='1') or (plaintextFileCharEncoding[i]=='0' and newKey[i]=='0'):
 				ciphertext.append('0')
+			
 			else:
 				ciphertext.append('1')
 
 		
-		# Writing the ciphertext to the output file
-		fhandle=None
-		if self.outputFile:
-			fhandle=open(self.outputFile,'wb')
-		else:
-			fhandle=open('c.out','wb')
-
-
+		# Writing the ciphertext to the output directory, first check for existence
+		# of the output directory, and create one if necessary
+		if not self.outputDir:
+			makedirs("out",exist_ok=True)
+			self.outputDir="out"
 		
+		elif not path.exists(self.outputDir):
+			makedirs(self.outputDir,exist_ok=True)
 
-		convertedCipherText= list()
+		fhandle=open(self.outputDir+"/"+'ciphertext','wb')
 		
 		for idx in range(0,len(ciphertext),8):
-			fhandle.write(int("".join(mRNA[idx:idx+8]),2).to_bytes(1, 'little'))
+			fhandle.write(int("".join(ciphertext[idx:idx+8]),2).to_bytes(1, 'little'))
+
+
+		# Dumping encodings
+
+		with open(self.outputDir+"/"+"alphabet.enc", "wb") as fh:
+			dump(self.dnaEncodings, fh)
+
+		with open(self.outputDir+"/"+"dnaprot.enc", "wb") as fh:
+			dump(self.dnaProEncodings, fh)
+
 
 
 
