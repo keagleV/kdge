@@ -1,0 +1,128 @@
+#!/bin/python3
+
+import argparse
+
+from os import path
+
+from keygenEA import EAparams
+
+
+class KdgeKeyGenLogger:
+	'''
+		This class has implemented the logger functionality which is going
+		to be used through the program
+	'''
+
+	def log_message(self,message,status,lineNumer=None):
+
+		'''
+			This function will log the message to the console
+		'''
+
+		print("[{0}]{1} {2} ".format(status,'' if lineNumer is None else ' L-'+str(lineNumer)+'  ' ,message))
+
+
+
+
+
+
+
+
+class Kdgekg:
+	'''
+		This class has implemented the key generation algorithm for
+		DNA Geneitc Encryption
+	'''
+
+	def __init__(self):
+
+		# Logging Handler
+		self.logHandler = KdgeKeyGenLogger()
+		
+
+		# Length of the key
+		self.keyLen = int()
+
+
+		# Output directory
+		self.outputDir = None
+
+
+		# Configuration file
+		self.confFile = None
+
+
+		# Log messages
+		self.logMessages = {
+
+			'KEY_LENGTH_NOT_SPECIFIED': 'Key Length Should Be Specified',
+			'CONF_FILE_NOT_EXIST':'Configuration File Not Exist'
+		}
+
+
+	def cmd_argument_parser(self):
+		'''
+			This function will parse the command-line argument
+
+		'''
+		parser = argparse.ArgumentParser(description='KDGE Program Key Generator')
+
+		parser.add_argument('-c','--cfile',  type=str, nargs=1,help='Specify Configuration File')
+		parser.add_argument('-l','--keylen',  type=int, nargs=1,help='Specify key Length')
+		parser.add_argument('-o','--out',  type=str, nargs=1,help='Specify Output Directory')
+
+		args = parser.parse_args()
+
+		if not args.keylen:
+
+			self.logHandler.log_message(self.logMessages['KEY_LENGTH_NOT_SPECIFIED'],'ERR')
+			exit(1)
+
+		self.keyLen = args.keylen[0]
+
+
+		# Checking for other parameters
+		if args.out:
+			self.outputDir = args.out[0]
+
+
+		if args.cfile:
+
+			# Check for existence
+
+			if not path.exists(args.cfile[0]):
+				self.logHandler.log_message(self.logMessages['CONF_FILE_NOT_EXIST'],'ERR')
+				exit(1)
+
+			self.confFile = args.cfile[0]
+
+			# 
+
+
+
+	def run_ea_key_generation(self):
+
+		'''
+			This function will perform the main tasks of key generation with EA algorithm
+		'''
+
+		# Creating EA parameter
+
+		eaParams = EAparams()
+
+		# Checking for configuraion file, if exist, load the new parameters to the 
+		# parameter object
+		if self.confFile:
+			eaParams.read_params(self.confFile)
+
+		print(eaParams.mutOp)
+
+
+
+obj= Kdgekg()
+
+obj.cmd_argument_parser()
+
+obj.run_ea_key_generation()
+
+

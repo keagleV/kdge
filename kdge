@@ -1,6 +1,6 @@
+#!/bin/python3
 
 import argparse
-from kdgeLogger import KdgeLogger
 from os import path
 from random import randint
 
@@ -13,6 +13,26 @@ from pickle import dump
 from pickle import load
 
 from os import makedirs
+
+
+class KdgeLogger:
+	'''
+		This class has implemented the logger functionality which is going
+		to be used through the program
+	'''
+
+	def log_message(self,message,status,lineNumer=None):
+
+		'''
+			This function will log the message to the console
+		'''
+
+		print("[{0}]{1} {2} ".format(status,'' if lineNumer is None else ' L-'+str(lineNumer)+'  ' ,message))
+
+
+
+
+
 
 class Kdge:
 
@@ -81,7 +101,7 @@ class Kdge:
 			This function parses the command line arguments of the program
 		'''
 
-		parser = argparse.ArgumentParser(description='Create Configuration File Help')
+		parser = argparse.ArgumentParser(description='KDGE Program')
 
 		parser.add_argument('-p','--pfile',  type=str, nargs=1,help='Specify Plaintext File')
 		parser.add_argument('-c','--cfile',  type=str, nargs=1,help='Specify ciphertext File')
@@ -139,7 +159,7 @@ class Kdge:
 				
 				# Check for argument providance
 				if not (args.cfile):
-					self.logHandler.log_message(self.messCode['CIPHER_NOT_ENOUGH_ARGS'],'ERR')
+					self.logHandler.log_message(self.messCode['DECRYPTION_NOT_ENOUGH_ARGS'],'ERR')
 					exit(1)
 
 
@@ -268,17 +288,19 @@ class Kdge:
 		# Next, we XOR the cipher text with the given key
 
 		# First, make key and the plaintext equal length
-		differenceMul = len(ciphertextFileCharEncoding) // len(keyFileBitsList)
-		differenceMod = len(ciphertextFileCharEncoding) % len(keyFileBitsList)
-		newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
+		if len(keyFileBitsList) < len(ciphertextFileCharEncoding):
 
+			differenceMul = len(ciphertextFileCharEncoding) // len(keyFileBitsList)
+			differenceMod = len(ciphertextFileCharEncoding) % len(keyFileBitsList)
+			newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
+			keyFileBitsList=newKey
 
 		# Next level plaintext hols the xor value
 		nextLevelPlaintext = []
 
 		for i in range(len(ciphertextFileCharEncoding)):
 			
-			if ( ciphertextFileCharEncoding[i]=='1' and newKey[i]=='1') or (ciphertextFileCharEncoding[i]=='0' and newKey[i]=='0'):
+			if ( ciphertextFileCharEncoding[i]=='1' and keyFileBitsList[i]=='1') or (ciphertextFileCharEncoding[i]=='0' and keyFileBitsList[i]=='0'):
 				nextLevelPlaintext.append('0')
 			
 			else:
@@ -371,13 +393,11 @@ class Kdge:
 		# Character encoding of the file
 		plaintextFileCharEncoding = list()
 
-		print(self.dnaEncodings)
 		# Reading the characters of the plaintext file and encode them with dna-encodings and 
 		# convert them to binary values using binary encoding.
 		for line in lines:
 			for char in line:
 				dnaEncoding = self.dnaEncodings[ord(char)]
-				print(dnaEncoding)
 				plaintextFileCharEncoding+= list("".join([ self.dnaProEncodings[prot] for prot in dnaEncoding]))
 
 
@@ -387,10 +407,12 @@ class Kdge:
 		# XORing plaintext with the key
 
 		# First, make key and the plaintext equal length
-		differenceMul = len(plaintextFileCharEncoding) // len(keyFileBitsList)
-		differenceMod = len(plaintextFileCharEncoding) % len(keyFileBitsList)
-		newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
+		if len(keyFileBitsList) < len(plaintextFileCharEncoding):
 
+			differenceMul = len(plaintextFileCharEncoding) // len(keyFileBitsList)
+			differenceMod = len(plaintextFileCharEncoding) % len(keyFileBitsList)
+			newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
+			keyFileBitsList = newKey
 
 	
 		ciphertext = []
@@ -398,7 +420,7 @@ class Kdge:
 
 		for i in range(len(plaintextFileCharEncoding)):
 			
-			if ( plaintextFileCharEncoding[i]=='1' and newKey[i]=='1') or (plaintextFileCharEncoding[i]=='0' and newKey[i]=='0'):
+			if ( plaintextFileCharEncoding[i]=='1' and keyFileBitsList[i]=='1') or (plaintextFileCharEncoding[i]=='0' and keyFileBitsList[i]=='0'):
 				ciphertext.append('0')
 			
 			else:
