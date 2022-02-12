@@ -10,6 +10,7 @@ from operator import sub
 
 
 from pickle import dump
+from pickle import load
 
 from os import makedirs
 
@@ -67,7 +68,8 @@ class Kdge:
 		'KEY_FILE_NOT_EXIST': 'Key File Not Exist',
 		'KEY_LENGTH_NOT_SPECIFIED': 'Length Of The Key Should Be Specified',
 		'CIPHERTEXT_FILE_NOT_EXIST': 'Ciphertext File Not Exist',
-		'ENCRYPTION_NO_ACTION_SPECIFIED': 'No Action Specified'
+		'ENCRYPTION_NO_ACTION_SPECIFIED': 'No Action Specified',
+		'DECRYPTION_NO_KEY_FILE': 'No Key File Has Specified, Decryption Failed'
 
 		}
 
@@ -107,7 +109,7 @@ class Kdge:
 					self.logHandler.log_message(self.messCode['KEY_LENGTH_NOT_SPECIFIED'],'ERR')
 					exit(1)
 
-				self.keyLen = args.keylen[0]
+				self.keyLen = int(args.keylen[0])
 				self.keyFile= args.kfile[0]
 
 			# Action
@@ -202,15 +204,125 @@ class Kdge:
 
 
 
-	
+	def kdge_decrypt(self):
+		'''
+			This function has implemented the decryption function
+		'''
 
+		# List of bits of the keyfile
+		keyFileBitsList = list()
+
+
+
+		# Check for the keyfile existance
+		if not self.keyFile:
+				self.logHandler.log_message(self.messCode['DECRYPTION_NO_KEY_FILE'],'ERR')
+				exit(1)
+
+		# Reading encodings file
+		with open("out/alphabet.enc", "rb") as iffile:
+			dnaEncodings = load(iffile)
+
+			# Reversing the dictionary for decryption
+			self.dnaEncodings =  {y:x for x,y in dnaEncodings.items()}
+		
+
+		# Reading protein encodings file
+		with open("out/dnaprot.enc", "rb") as iffile:
+			dnaProEncodings = load(iffile)
+
+			# Reversing the dictionary for decryption
+			self.dnaProEncodings =  {y:x for x,y in dnaProEncodings.items()}
+
+
+			
+
+
+		# Reading the keyfile
+		fhandle = open(self.keyFile,'rb')
+		keyBytes = fhandle.read(100)
+		fhandle.close()
+
+
+
+		for byte in keyBytes:
+			keyFileBitsList += list(bin(byte)[2:].zfill(8))
+
+
+
+		# Reading the ciphertext file
+		fhandle=open(self.ciphertextFile,'rb')
+		lines = fhandle.readlines()
+		fhandle.close()
+
+
+		# Ciphertext binaries of the bytes
+		ciphertextFileCharEncoding=list()
+
+		for line in lines:
+
+			for char in line.strip():
+				ciphertextFileCharEncoding += list(bin(char)[2:].zfill(8)) 
+
+
+		# Next, we XOR the cipher text with the given key
+
+		# First, make key and the plaintext equal length
+		differenceMul = len(ciphertextFileCharEncoding) // len(keyFileBitsList)
+		differenceMod = len(ciphertextFileCharEncoding) % len(keyFileBitsList)
+		newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
+
+
+		# Next level plaintext hols the xor value
+		nextLevelPlaintext = []
+
+		for i in range(len(ciphertextFileCharEncoding)):
+			
+			if ( ciphertextFileCharEncoding[i]=='1' and newKey[i]=='1') or (ciphertextFileCharEncoding[i]=='0' and newKey[i]=='0'):
+				nextLevelPlaintext.append('0')
+			
+			else:
+				nextLevelPlaintext.append('1')
+
+
+		# Next, we group bits 2by2 to translate them to their protein representation
+		proteinRepresentation = list()
+		for idx in range(0,len(nextLevelPlaintext),2):
+			proteinCode = "".join(nextLevelPlaintext[idx:idx+2])
+
+			# Translate the protein code with the protein encoding
+			proteinRepresentation.append(self.dnaProEncodings[proteinCode])
+
+		
+		# Next, we group proteins 4by4 to translate them to their ascii representation, and finally,
+		# we use alphabet encoding to translate the grouped proteins
+
+		asciiRepresentation = list()
+		for idx in range(0,len(proteinRepresentation),4):
+			groupedProteins = "".join(proteinRepresentation[idx:idx+4])
+
+			asciiRepresentation.append(chr(self.dnaEncodings[groupedProteins]))
+
+
+
+		# Writing the ascii representation to the out directory
+		if not self.outputDir:
+			makedirs("out",exist_ok=True)
+			self.outputDir="out"
+		
+		elif not path.exists(self.outputDir):
+			makedirs(self.outputDir)
+
+		fhandle=open(self.outputDir+"/"+'plaintext','w')
+		
+		for char in asciiRepresentation:
+			fhandle.write(char)
 
 
 	def kdge_encrypt(self):
 		'''
 			This function performs the encryption process and returns the ciphertext
 		'''
-
 
 
 		# List of bits of the keyfile
@@ -235,7 +347,6 @@ class Kdge:
 
 
 		# Reading the keyfile
-
 		fhandle = open(self.keyFile,'rb')
 		keyBytes = fhandle.read(100)
 		fhandle.close()
@@ -243,8 +354,10 @@ class Kdge:
 
 
 		for byte in keyBytes:
-
 			keyFileBitsList += list(bin(byte)[2:].zfill(8))
+
+
+
 
 
 
@@ -258,80 +371,30 @@ class Kdge:
 		# Character encoding of the file
 		plaintextFileCharEncoding = list()
 
-
+		print(self.dnaEncodings)
 		# Reading the characters of the plaintext file and encode them with dna-encodings and 
 		# convert them to binary values using binary encoding.
 		for line in lines:
-			for char in line.strip():
+			for char in line:
 				dnaEncoding = self.dnaEncodings[ord(char)]
+				print(dnaEncoding)
 				plaintextFileCharEncoding+= list("".join([ self.dnaProEncodings[prot] for prot in dnaEncoding]))
 
 
-
-
-		# '''
-		# 	Next, we have to create the transcript T which is mRNA
-			
-		# 	mRNA is bit complement of the DNA which here is the plaintext
-		# '''
-		# mRNA = list()
-		# for bit in plaintextFileCharEncoding:
-		# 	if bit == '0':
-		# 		mRNA.append('1')
-		# 	else:
-		# 		mRNA.append('0')
-
-
-		'''
-			Next, we have to create tRNA
-			
-		'''
-		# tRNA=plaintextFileCharEncoding
-
-
-		# mRNADecimalVals = list()
-		# tRNADecimalVals = list()
-
-		# # Next we convert 8by8 bits to decimal values for mRNA and tRNA
-		# for idx in range(0,len(mRNA),8):
-		# 	mRNADecimalVals.append(int("".join(mRNA[idx:idx+8]),2))
-
-		# for idx in range(0,len(tRNA),8):
-		# 	tRNADecimalVals.append(int("".join(tRNA[idx:idx+8]),2))
-
-
-	
-
-		'''
-			Next, we calculate the subtractive matrix
-		'''
-		# subtractiveMatrix = [ abs(diff) for diff in list(map(sub,mRNADecimalVals,tRNADecimalVals))]
-
-		# # Shuffling the matrix
-		# shuffle(subtractiveMatrix)
-
-	
-
-
-
-		# Achieving the tRNA again by converting the subtractive matrix back to binary form
-		# tRNA = list()
-		# for num in subtractiveMatrix:
-		# 	tRNA += list(bin(num)[2:].zfill(8))
 
 
 
 		# XORing plaintext with the key
 
 		# First, make key and the plaintext equal length
-		difference = len(plaintextFileCharEncoding) % len(keyFileBitsList)
-		newKey = keyFileBitsList+ keyFileBitsList[:difference]
+		differenceMul = len(plaintextFileCharEncoding) // len(keyFileBitsList)
+		differenceMod = len(plaintextFileCharEncoding) % len(keyFileBitsList)
+		newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
 
 
-		print(plaintextFileCharEncoding)
-		print(newKey)
-		
+	
 		ciphertext = []
+
 
 		for i in range(len(plaintextFileCharEncoding)):
 			
@@ -341,6 +404,7 @@ class Kdge:
 			else:
 				ciphertext.append('1')
 
+	
 		
 		# Writing the ciphertext to the output directory, first check for existence
 		# of the output directory, and create one if necessary
@@ -349,7 +413,7 @@ class Kdge:
 			self.outputDir="out"
 		
 		elif not path.exists(self.outputDir):
-			makedirs(self.outputDir,exist_ok=True)
+			makedirs(self.outputDir)
 
 		fhandle=open(self.outputDir+"/"+'ciphertext','wb')
 		
@@ -366,7 +430,7 @@ class Kdge:
 			dump(self.dnaProEncodings, fh)
 
 
-
+	
 
 obj=Kdge()
 obj.create_dna_alphabet_encoding()
