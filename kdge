@@ -86,6 +86,7 @@ class Kdge:
 		'DECRYPTION_NOT_ENOUGH_ARGS': 'Ciphertext File Not Provided For Decryption',
 		'PLAINTEXT_FILE_NOT_EXIST': 'Plaintext File Not Exist',
 		'KEY_FILE_NOT_EXIST': 'Key File Not Exist',
+		'KEY_FILE_NOT_PROVIDED': 'Key File Not Specified',
 		'KEY_LENGTH_NOT_SPECIFIED': 'Length Of The Key Should Be Specified',
 		'CIPHERTEXT_FILE_NOT_EXIST': 'Ciphertext File Not Exist',
 		'ENCRYPTION_NO_ACTION_SPECIFIED': 'No Action Specified',
@@ -131,6 +132,9 @@ class Kdge:
 
 				self.keyLen = int(args.keylen[0])
 				self.keyFile= args.kfile[0]
+			else:
+				self.logHandler.log_message(self.messCode['KEY_FILE_NOT_PROVIDED'],'ERR')
+				exit(1)
 
 			# Action
 			action = (args.action[0]).lower()
@@ -234,11 +238,6 @@ class Kdge:
 
 
 
-		# Check for the keyfile existance
-		if not self.keyFile:
-				self.logHandler.log_message(self.messCode['DECRYPTION_NO_KEY_FILE'],'ERR')
-				exit(1)
-
 		# Reading encodings file
 		with open("out/alphabet.enc", "rb") as iffile:
 			dnaEncodings = load(iffile)
@@ -255,12 +254,10 @@ class Kdge:
 			self.dnaProEncodings =  {y:x for x,y in dnaProEncodings.items()}
 
 
-			
-
 
 		# Reading the keyfile
 		fhandle = open(self.keyFile,'rb')
-		keyBytes = fhandle.read(100)
+		keyBytes = fhandle.read(self.keyLen//8) # Dividing by to specifiy bytes
 		fhandle.close()
 
 
@@ -322,7 +319,6 @@ class Kdge:
 		asciiRepresentation = list()
 		for idx in range(0,len(proteinRepresentation),4):
 			groupedProteins = "".join(proteinRepresentation[idx:idx+4])
-
 			asciiRepresentation.append(chr(self.dnaEncodings[groupedProteins]))
 
 
@@ -337,8 +333,11 @@ class Kdge:
 
 		fhandle=open(self.outputDir+"/"+'plaintext','w')
 		
-		for char in asciiRepresentation:
+		for char in asciiRepresentation:			
 			fhandle.write(char)
+
+
+
 
 
 	def kdge_encrypt(self):
@@ -351,36 +350,15 @@ class Kdge:
 		keyFileBitsList = list()
 
 
-
-		# Check for the keyfile existance
-		if not self.keyFile:
-
-			fh = open("key.k",'wb')
-
-			for i in range(0,3):
-				fh.write((randint(48,58)).to_bytes(1, 'little'))
-
-			fh.close()
-
-			self.keyFile="key.k"
-
-			# Creat the keyfile first
-			pass
-
-
 		# Reading the keyfile
 		fhandle = open(self.keyFile,'rb')
-		keyBytes = fhandle.read(100)
+		keyBytes = fhandle.read(self.keyLen // 8)  # Dividing by to specifiy bytes
 		fhandle.close()
 
 
 
 		for byte in keyBytes:
 			keyFileBitsList += list(bin(byte)[2:].zfill(8))
-
-
-
-
 
 
 
@@ -401,9 +379,6 @@ class Kdge:
 				plaintextFileCharEncoding+= list("".join([ self.dnaProEncodings[prot] for prot in dnaEncoding]))
 
 
-
-
-
 		# XORing plaintext with the key
 
 		# First, make key and the plaintext equal length
@@ -414,20 +389,16 @@ class Kdge:
 			newKey = keyFileBitsList*differenceMul + keyFileBitsList[:differenceMod]
 			keyFileBitsList = newKey
 
-	
 		ciphertext = []
-
 
 		for i in range(len(plaintextFileCharEncoding)):
 			
 			if ( plaintextFileCharEncoding[i]=='1' and keyFileBitsList[i]=='1') or (plaintextFileCharEncoding[i]=='0' and keyFileBitsList[i]=='0'):
-				ciphertext.append('0')
-			
+				ciphertext.append('0')			
 			else:
 				ciphertext.append('1')
 
-	
-		
+
 		# Writing the ciphertext to the output directory, first check for existence
 		# of the output directory, and create one if necessary
 		if not self.outputDir:

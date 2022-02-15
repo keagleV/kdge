@@ -423,12 +423,11 @@ class Kdgekg:
 
 		# Check for the output directory
 		if not self.outputDir:
-			makedirs("out",exist_ok=True)
-			self.outputDir="out"
+			makedirs("key",exist_ok=True)
+			self.outputDir="key"
 		
 		elif not path.exists(self.outputDir):
 			makedirs(self.outputDir)
-
 
 		# Writing to a file called key.k
 		fh = open(self.outputDir + "/key.k",'wb')
