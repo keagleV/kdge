@@ -4,7 +4,21 @@ import argparse
 
 from os import path
 
-from keygenEA import EAparams
+from keygenEAParams import EAparams
+
+
+from random import choices
+
+from random import random
+
+from random import randint
+
+from random import choice
+
+from operator import xor
+
+from os import makedirs
+
 
 
 class KdgeKeyGenLogger:
@@ -99,6 +113,243 @@ class Kdgekg:
 			# 
 
 
+	def generate_init_population(self,popSize):
+		'''
+			This function will generate the initial population of the keys
+		'''
+
+		# List of population
+		population=list()
+
+		for i in range(popSize):
+			# -1 as the second element of the list, represents the firness value,
+			# which initially it is -1.
+			population.append([choices(['1','0'],weights=None , k=self.keyLen),-1])
+
+
+		return population
+
+
+
+	def perform_crossover(self,population,method,crossProb):
+		'''
+			This function will perform the crossover based on the method provided
+		'''
+		
+		# New population after performing crossover
+		newPopulation = list()
+
+		# Old parents who did not participate in this process
+		oldPopulation = list()
+
+		# Performing rotation crossover
+		if method == "rot":
+
+			for individual in population:
+
+				if random() <= crossProb:
+					
+					# To rotate the individual, we choose a random integer between
+					# 1 and the length of the individual minus -1.
+
+					rotationPoint = randint(1,self.keyLen-1)
+
+					# Next, rotate the individual and add it to the newPopulation list.
+					# New individual will have fitness value equal to 0.
+					newPopulation.append( [individual[0][rotationPoint:]+individual[0][:rotationPoint]] + [-1,] )
+
+				else:
+					oldPopulation.append(individual)
+		
+
+		elif method == "spc":
+
+			# Select individuals two by two and mate them
+
+			for i in range(0,len(population),2):
+
+				parent1 = population[i]
+				parent2 = population[i+1]
+
+				if random() <= crossProb:
+
+					# Mating the parents
+
+					# Chossing single point of breaking
+					pointOfBreaking = randint(1,self.keyLen-1)
+
+					offs1 = parent1[0][:pointOfBreaking] + parent2[0][pointOfBreaking:]
+
+					offs2 = parent2[0][:pointOfBreaking] + parent1[0][pointOfBreaking:]
+
+					newPopulation.append([offs1]+[-1])
+					newPopulation.append([offs2]+[-1])
+
+				else:
+					oldPopulation.append(parent1)
+					oldPopulation.append(parent2)
+
+
+		
+		elif method == "2pc":
+
+			# Performing 2-point crossover
+
+			# Select individuals two by two and mate them
+
+			for i in range(0,len(population),2):
+
+				parent1 = population[i]
+				parent2 = population[i+1]
+
+				if random() <= crossProb:
+
+					# Mating the parents
+
+					# Chossing 2-points for breaking
+					possiblePoints= list(range(1,self.keyLen-1))
+
+					point1 = choice(possiblePoints)
+					possiblePoints.remove(point1)
+
+					point2 = choice(possiblePoints)
+
+
+					# Swap points so point1 becomes the point with lower index
+					if point1 > point2:
+						point1,point2=point2,point1
+
+
+					offs1 = parent1[0][:point1] + parent2[0][point1:point2] + parent1[0][point2:]
+
+					offs2 = parent2[0][:point1] + parent1[0][point1:point2] + parent2[0][point2:]
+
+					newPopulation.append([offs1]+[-1])
+					newPopulation.append([offs2]+[-1])
+
+				else:
+					oldPopulation.append(parent1)
+					oldPopulation.append(parent2)
+
+
+
+		return newPopulation,oldPopulation
+
+
+
+	def perform_mutation(self,population,method,mutProb):
+		'''
+			This function will perform the mutation on the population based
+			on the method provided
+		'''
+
+		# New population after performing the mutation
+		newPopulation = list()
+
+		if method == "sbf":
+
+			for individual in population:
+
+				temp = list()
+
+				for bit in individual[0]:
+
+					# flip the bit
+					if random() <= mutProb:
+						temp.append('1' if bit=='0' else '0')
+
+					else:
+						temp.append(bit)
+
+				newPopulation.append([temp]+[individual[1]])
+
+		
+		elif method == "mbf":
+
+			# To implement this feature, we choose two random points in the 
+			# individual, and flip all the bits between them
+
+			
+			# List of options for the points to choose from
+			possiblePoints= list(range(1,self.keyLen-1))
+			
+			for individual in population:
+
+				point1 = choice(possiblePoints)
+				possiblePoints.remove(point1)
+
+				point2 = choice(possiblePoints)
+
+				# bring the point 1 back to the possible points
+				possiblePoints.append(point1)
+
+				# Swap points so point1 becomes the point with lower index
+				if point1 > point2:
+					point1,point2=point2,point1
+
+
+
+				# Flipping the bits between point 1 and point2
+
+				# Temp list holding the bits of the individual
+				temp = individual[0][:point1]
+
+				for i in range(point1,point2):
+
+					if individual[0][i]=='1':
+						temp.append('0')
+					else:
+						temp.append('1')
+
+
+				# Bring the rest of the individual back
+				temp+= individual[0][point2:]
+
+
+				newPopulation.append([temp]+[individual[1]])
+
+
+		return newPopulation
+
+
+	def calculate_fitness_value(self,population,randomString,freqNum):
+		'''
+			This function will calculate the fitness value of each individual
+		'''
+
+		for individual in population:
+
+			key = individual[0]
+
+			# Key values in integer
+			integerKeyValues = list()
+
+			# Converting the key to integer values
+			for i in range(0,len(key),8):
+				integerKeyValues.append(int("".join(key[i:i+8]),base=2))
+
+
+			'''
+				Xoring the key with random string
+			'''
+
+			# Xor list
+			xorList = list()
+
+			for i in range(len(integerKeyValues)):
+				xorList.append(xor(integerKeyValues[i] , randomString[i]))
+
+			# Finding the frequency of the xor list
+			xorListFreq = len(list(set(xorList)))
+
+
+			# Calculating the fitness value
+			individual[1] = abs(xorListFreq - freqNum+1) 
+
+			for i in range(len(xorList)):
+				individual[1] += abs(randomString[i]- xorList[i])
+
+
 
 	def run_ea_key_generation(self):
 
@@ -115,7 +366,80 @@ class Kdgekg:
 		if self.confFile:
 			eaParams.read_params(self.confFile)
 
-		print(eaParams.mutOp)
+
+
+		# Generating random string for calculating the fitness, this string is represented
+		# by ascii values
+		randomString = choices(range(0,255),weights=None,k=self.keyLen//8)
+
+		# Calculating the ascii frequency of this string
+		freqNum = len(list(set(randomString)))
+
+
+		population = self.generate_init_population(eaParams.popSize)
+
+		# Calculating the fitness value
+		self.calculate_fitness_value(population,randomString,freqNum)
+
+
+		# Rounds pf execution
+		roundsOfExecution = eaParams.genCount
+
+		while(roundsOfExecution):
+
+			# Performing crossover
+			newPopulation , oldPopulation = self.perform_crossover(population,eaParams.crossOp,eaParams.crossProb)
+
+
+			# Performing mutation
+			mutatedPopulation =  self.perform_mutation(newPopulation,eaParams.mutOp,eaParams.mutProb)
+
+
+			# Calculating the fitness value of the mutated population
+			self.calculate_fitness_value(mutatedPopulation,randomString,freqNum)
+
+
+			# Performing selection 
+			combinedPopulation = mutatedPopulation + oldPopulation
+
+			# Sorting the individuals based on their fitness value
+			population = sorted(mutatedPopulation + oldPopulation , key=lambda x: x[1],reverse=True)
+
+			roundsOfExecution-=1
+
+
+
+		# Key is ready, save it to a file
+		key = population[0][0]
+
+
+		# Converting key bit string to integer value
+		keyIntegerValues= list()
+
+		for i in range(0,len(key),8):
+				keyIntegerValues.append(int("".join(key[i:i+8]),base=2))
+
+
+
+		# Check for the output directory
+		if not self.outputDir:
+			makedirs("out",exist_ok=True)
+			self.outputDir="out"
+		
+		elif not path.exists(self.outputDir):
+			makedirs(self.outputDir)
+
+
+		# Writing to a file called key.k
+		fh = open(self.outputDir + "/key.k",'wb')
+		
+		for value in keyIntegerValues:
+				fh.write(value.to_bytes(1, 'little'))
+
+		fh.close()
+
+
+
 
 
 

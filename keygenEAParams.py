@@ -46,6 +46,12 @@ class EAparams:
 		# Mutation Operation
 		self.mutOp = "sbf"
 
+		# Crossover Operation
+		self.crossOp = "spc"
+
+		# Crossover k-point crossover k value
+		self.crossKValue = 2
+
 
 		# Logger Handler
 		self.logHandler = KdgeEALogger()
@@ -71,15 +77,18 @@ class EAparams:
 
 		# Mutation operator
 		# 1. sbf: single bit flap
-		# 2. mbf: multi bit flpa
-		self.mutOpr= '\s*MUT_OP\s*=\s*[a-z]+\s*'
+		# 2. mbf: multi bit flap
+		self.mutOpr= '\s*MUT_OP\s*=\s*(sbf|mbf)\s*'
 
+		# Crossover operator
+		# 1. spc: single point crossover
+		# 2. kpc: k-point crossever
+		self.crossOpr= '\s*CROSS_OP\s*=\s*(spc|2pc|rot)\s*'
 
 
 
 		self.logMessages = {
-			'PARAMETER_DEFINITION_ERR':'Parameter Definition Error'
-
+			'PARAMETER_DEFINITION_ERR' : 'Parameter Definition Error',
 		}
 
 	
@@ -105,10 +114,10 @@ class EAparams:
 					continue
 
 				if match(self.genNumr,line):
-					self.popSize= int (line.split("=")[1].strip())
+					self.genCount= int (line.split("=")[1].strip())
 
 				elif match(self.popSizer,line):
-					self.genCount= int (line.split("=")[1].strip())
+					self.popSize= int (line.split("=")[1].strip())
 
 				elif match(self.mutProbr,line):
 					self.mutProb= float (line.split("=")[1].strip())
@@ -118,6 +127,10 @@ class EAparams:
 
 				elif match(self.mutOpr,line):
 					self.mutOp = str (line.split("=")[1].strip())
+
+				elif match(self.crossOpr,line):
+					self.crossOp = str (line.split("=")[1].strip())
+
 
 				else:
 					self.logHandler.log_message(self.logMessages['PARAMETER_DEFINITION_ERR'],'ERR',lineNum+1)
